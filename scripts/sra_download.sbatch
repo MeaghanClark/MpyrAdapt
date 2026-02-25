@@ -1,61 +1,7 @@
----
-title: "Macrocystis WGS Project"
-author: "Meaghan Clark"
-date: "2026-02-24"
-output: html_document
-editor_options: 
-  chunk_output_type: console
----
-## Summary 
-
-Project begun Februray 2026. Goal is to combine multiple *Macrocystis* whole genome resequencing data sets to learn about structure, inbreeding, and local adaptation. The majority of data is from Filipe Alberto, and the rest of the data is from existing publications, including: \
-- Gonzalez et al. PRJNA938791  
-- Molano et al. PRJNA661280
-
-## Directory structure
-
-
-## Metadata 
-
-##### Site keys from Filipe
-
----
-AM	Andrew Molera	36.283333	-121.876392
-MO	Monterey	36.617145	-121.895693
-PL	Point Loma	32.678617	-117.253367
-PP	Santa Cruz	36.952702	-121.9711
-PV	Palos Verdes	33.720889	-118.336278
-SC	Santa Cruz Island	34.032411	-119.524502
-SM	San Miguel Island	34.051883	-120.33885
----
-
-#### Download genomes from SRA 
-
-install SRA toolkit to download data from the SRA to elkhorn
-```{bash, eval = FALSE}
-# install SRA toolkit 
-# Download the latest Linux binary
-# from /home/miclark/software/
-wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
-tar -xzf sratoolkit.current-ubuntu64.tar.gz
-
-# Add to PATH
-echo 'export PATH=$HOME/software/sratoolkit.3.3.0-ubuntu64/bin:$PATH' >> ~/.bashrc
-source ~/.bashrc
-
-# configure SRA toolkit
-# follow guidance from: https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration
-vdb-config --interactive
-  # in cache, set user-repository to /hb/scratch/miclark/sra
-
-```
-
-Download SRA data
-```{bash, eval = FALSE}
 #!/bin/bash
 #SBATCH --job-name=sra_download
-#SBATCH --output=$HOME/logs/sra_download_%j.log
-#SBATCH --error=$HOME/logs/sra_download_%j.err
+#SBATCH --output=MpyrAdapt/logs/sra_download_%j.log
+#SBATCH --error=MpyrAdapt/logs/sra_download_%j.err
 #SBATCH --time=24:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
@@ -73,7 +19,7 @@ Download SRA data
 # Example: sbatch download_bioproject.sh PRJNA938791
 
 BIOPROJECT=$1
-OUTDIR=/home/miclark/Mpyr_WGS_data
+OUTDIR=/home/miclark/Mpyr_WGS_data/${BIOPROJECT}
 
 # make sure to install sratoolkit in your home directory
 export PATH=$HOME/software/sratoolkit.3.3.0-ubuntu64/bin:$PATH
@@ -85,7 +31,7 @@ if [ -z "$BIOPROJECT" ]; then
 fi
 
 # make output directories 
-mkdir -p $OUTDIR/$BIOPROJECT $OUTDIR/fastq
+mkdir -p $OUTDIR $OUTDIR/fastq
 
 echo "Fetching SRR accessions for $BIOPROJECT..."
 
@@ -124,15 +70,3 @@ gzip $OUTDIR/fastq/*.fastq
 
 echo "Done! Files in $OUTDIR/fastq:"
 ls -lh $OUTDIR/fastq/
-
-```
-
-## Raw data processing 
-
-
-
-
-
-
-
-
