@@ -8,9 +8,8 @@ editor_options:
 ---
 ## Summary 
 
-Project begun Februray 2026. Goal is to combine multiple *Macrocystis* whole genome resequencing data sets to learn about structure, inbreeding, and local adaptation. The majority of data is from Filipe Alberto, and the rest of the data is from existing publications, including: \
-- Gonzalez et al. PRJNA938791  
-- Molano et al. PRJNA661280
+Project begun Februray 2026. Goal is to combine multiple *Macrocystis* whole genome resequencing data sets to learn about structure, inbreeding, and local adaptation. 
+
 
 ## Directory structure
 
