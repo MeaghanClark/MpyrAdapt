@@ -2,10 +2,10 @@
 #SBATCH --job-name=sra_download
 #SBATCH --output=/home/miclark/MpyrAdapt/logs/sra_download_%j.log
 #SBATCH --error=/home/miclark/MpyrAdapt/logs/sra_download_%j.err
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=16G
+#SBATCH --mem=50G
 #SBATCH --partition=lab-mpinsky
 #SBATCH --qos=pi-mpinsky
 #SBATCH --account=pi-mpinsky
@@ -66,8 +66,9 @@ for sra_file in $OUTDIR/sra/SRR*/*.sra; do
 done
 
 # Compress
+module load parallel/20200122
 echo "Compressing FASTQ files..."
-gzip $OUTDIR/fastq/*.fastq
+ls ${INDIR}/*.fastq | parallel --no-notice -j 8 "gzip {}" 
 
 echo "Done! Files in $OUTDIR/fastq:"
 ls -lh $OUTDIR/fastq/

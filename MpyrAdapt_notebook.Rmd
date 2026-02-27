@@ -32,7 +32,7 @@ MpyrAdapt/
 
 ## Metadata 
 
-##### Site keys from Albert data 
+##### Site keys from Alberto data 
 
 ---
 AM	Andrew Molera	36.283333	-121.876392
@@ -106,34 +106,83 @@ sbatch ./scripts/sra_download.sbatch PRJNA938791 # Submitted batch job 106781
 sbatch ./scripts/sra_download.sbatch PRJNA661280 # Submitted batch job 106787
     # "SRR012" is text from the URL that hosts the sequences, included in SRR_accessions accidently 
 
-# [] remove sra files and unzipped .fastq files 
-rm -r Mpyr_WGS_data/PRJNA*/sra/
-rm Mpyr_WGS_data/PRJNA*/fastq/*.fastq
+# compression is taking a long time -- make parallel in an interactive job
+  # cancelling when compressing SRR23817627_1.fastq and SRR12582529_2.fastq 
+salloc --time=24:00:00 --mem=100Gb --ntasks=1 --cpus-per-task=32 --partition=lab-mpinsky \
+        --qos=pi-mpinsky \
+        --account=pi-mpinsky
+
+# PRJNA661280
+INDIR=/home/miclark/Mpyr_WGS_data/PRJNA661280/fastq
+module load parallel/20200122
+ls ${INDIR}/*.fastq | parallel --no-notice -j 32 "gzip {}"
+rm /home/miclark/Mpyr_WGS_data/PRJNA661280/fastq/SRR12582529_2.fastq.gz
+gzip /home/miclark/Mpyr_WGS_data/PRJNA661280/fastq/SRR12582529_2.fastq
+
+# PRJNA938791 [x]
+INDIR=/home/miclark/Mpyr_WGS_data/PRJNA938791/fastq
+rm /home/miclark/Mpyr_WGS_data/PRJNA938791/fastq/SRR23817627_1.fastq.gz # [x] 
+ls ${INDIR}/*.fastq | parallel --no-notice -j 32 "gzip {}" # [x]
+
+# moved sra files to scratch 
+
+# generate md5sums 
+cd /home/miclark/Mpyr_WGS_data/PRJNA938791/fastq/
+md5sum ./*.fastq.gz > ./md5sums.txt
+cd /home/miclark/Mpyr_WGS_data/PRJNA661280/fastq/
+md5sum ./*.fastq.gz > ./md5sums.txt
+cd /home/miclark/Mpyr_WGS_data/Mpyr_Alberto_data
+md5sum ./*.fastq.gz > ./md5sums.txt
+
+# move fastq.gz files to scratch 
+mv /home/miclark/Mpyr_WGS_data/* /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/ #[x]
+
+# verify md5sums
+cd /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA938791/fastq/
+md5sum -c ./md5sums.txt > ./md5sums_check.txt # [x]
+cd /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA661280/fastq/
+md5sum -c ./md5sums.txt > ./md5sums_check.txt # [x]
+cd /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/Mpyr_Alberto_data
+md5sum -c ./md5sums.txt > ./md5sums_check.txt # []
+
+# get run information, which includes individual sample names, saves to runinfo.csv in each project directory
+cd /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA938791/
+wget -q "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sra&id=$(grep -o '"[0-9]\{6,\}"' ./search.json | tr -d '"' | paste -sd',')&rettype=runinfo&retmode=csv" -O runinfo.csv
+cd /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA661280/
+wget -q "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sra&id=$(grep -o '"[0-9]\{6,\}"' ./search.json | tr -d '"' | paste -sd',')&rettype=runinfo&retmode=csv" -O runinfo.csv
+
 
 ```
 
 ## Raw data processing 
 
 Standardize file names and set up symbolic links from Mpyr_WGS_data to MpyrAdapt/data/raw
+  - Naming convetion: Species_project_site-sample_number_readDirection, e.g. Mpyr_ALB_STL-03_1, Mpyr_MOL_STL-03_2, Mpyr_GON_STL-03_1
+
 ```{bash, eval = FALSE}
 
-# standardize file names 
-
-
 # set up symbolic links from Mpyr_WGS_data to MpyrAdapt/data/raw
+sbatch ./scripts/make_symbolic_links.sbatch # Submitted batch job 109551
 
+# two files not found
+    # WARNING: /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA938791/fastq/SRR23817635_1.fastq.gz not found, skipping
+    # WARNING: /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA938791/fastq/SRR23817635_2.fastq.gz not found, skipping
+    # SRR23817635 is a sequence that exists from Gonzalez et al, but is missing from sra download. This is a southern hemisphere integrifolia sample, which is likely outside the scope of this project, so we will proceed without it 
+
+# set up symbolic link to reference genome
+ln -s /hb/groups/mpinsky_lab/Mpyr_ref_2025/hap1/Mpyr-NLJ1B.v3.hap1.softmasked.fasta /home/miclark/MpyrAdapt/data/reference/Mpyr-NLJ1B.v3.hap1.softmasked.fasta
 
 ```
 
 Run FastQC on raw reads, run MultiQC to summarize results, and check percent adapter dimer
 ```{bash, eval = FALSE}
-sbatch read_QC.sbatch "<full path to directory with the files to be processed>" "<report name>"
-sbatch "./scripts/read_QC.sbatch data/raw" "fastq_raw"
+sbatch ./scripts/read_QC.sbatch "/home/miclark/MpyrAdapt/data/raw" "raw_reads_QC" # Submitted batch job 109557
 
 ```
 
 Trim raw reads with Fastp
 ```{bash, eval = FALSE}
+sbatch ./scripts/trim_reads.sbatch
 
 ```
 

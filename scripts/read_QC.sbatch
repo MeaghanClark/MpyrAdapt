@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --job-name=Multi_fastqc
+#SBATCH --job-name=read_QC
 #SBATCH --output /home/miclark/MpyrAdapt/logs/read_QC-%j.out
 #SBATCH --error /home/miclark/MpyrAdapt/logs/read_QC-%j.err
 #SBATCH --cpus-per-task=32
 #SBATCH --time=24:00:00
-#SBATCH --mem=150G 
+#SBATCH --mem=100G 
 #SBATCH --partition=lab-mpinsky
 #SBATCH --qos=pi-mpinsky
 #SBATCH --account=pi-mpinsky
@@ -34,6 +34,10 @@ REPORTNAME=$2
 PATTERN=".fastq.gz" # change to match file extension or regex pattern that identifies the files to be processed
 CPUS=32 # change to match number of cpus requested in slurm settings
 
+# define and create output directory
+OUTDIR=${inDIR}/read_QC
+if [ ! -d $OUTDIR ]; then mkdir $OUTDIR; fi
+
 #run fastqc in parallel 
 ls ${inDIR}/*${PATTERN} | parallel --no-notice -j ${CPUS} "fastqc {}" 
 
@@ -42,16 +46,13 @@ module unload fastqc/0.12.1
 module load multiqc/1.27
 
 # run multiqc with specific report and subdirectory names
-multiqc -v -p -ip -f --data-dir --data-format tsv --cl-config "max_table_rows: 3000" --filename $REPORTNAME --outdir $inDIR $inDIR
+multiqc -v -p -ip -f --data-dir --data-format tsv --cl-config "max_table_rows: 3000" --filename $REPORTNAME --outdir $OUTDIR $inDIR
 
 # move fastqc files to new subdirectory
-OUTDIR=${inDIR}/read_QC
-
 ls ${inDIR}/*fastqc.html | parallel -kj $CPUS "mv {} ${OUTDIR}" &&
 ls ${inDIR}/*fastqc.zip | parallel -kj $CPUS "mv {} ${OUTDIR}"
-mv ${inDIR}/${REPORTNAME}.html ${OUTDIR}
 
-# calculate % adapter dimer
+# calculate % adapter dimer --- this is broken! 
 adapter_dimer() {
     file="$1"
     adapter=$(zcat "$file" | grep -c '^AGATCGGAAG')
