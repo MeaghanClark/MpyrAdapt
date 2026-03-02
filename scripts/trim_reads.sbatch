@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #SBATCH --job-name=fastp
-#SBATCH --output /hb/home/miclark/kelpEVOL_fq_gz_processing/logs/trim_reads-%j.out
-#SBATCH --error /hb/home/miclark/kelpEVOL_fq_gz_processing/logs/trim_reads-%j.err
+#SBATCH --output /home/miclark/MpyrAdapt/logs/trim_reads-%j.out
+#SBATCH --error /home/miclark/MpyrAdapt/logs/trim_reads-%j.err
 #SBATCH --cpus-per-task=32 
-#SBATCH --time=72:00:00 
+#SBATCH --time=96:00:00 
 #SBATCH --mem=75G 
 #SBATCH --partition=lab-mpinsky
 #SBATCH --qos=pi-mpinsky

@@ -20,13 +20,18 @@ MpyrAdapt/
 │   ├── processed/    # trimmed, filtered, aligned data
 │   └── reference/    # symbolic link to reference genome
 ├── scripts/
-│   ├── sra_download.sbatch
-│   ├── read_QC.sbatch
-│   └── 
+│   ├── 0. sra_download.sbatch
+│   ├── 1. make_smbolic_links.sbatch
+│   ├── 2. trim_reads.sbatch
+│   ├── 3. make_alignment_key.sbatch
+│   ├── 4. wrapper-align_to_genome.sh
+│   ├── 5. align_to_genome.sbatch
+│   ├── 6. 
+│   └── 7. 
 ├── 
 │   ├── 
 │   └── 
-├── 
+├── logs
 └── MpyrAdapt_notebook.md
 ```
 
@@ -184,9 +189,57 @@ Trim raw reads with Fastp
 ```{bash, eval = FALSE}
 sbatch ./scripts/trim_reads.sbatch
 
+# job finished fastp, then stopped running before running multiQC. Not sure if this is an issue with the node, with the script, or with the mutliQC module
+
+# running multiQC manually: 
+#run multiqc 
+salloc --time=24:00:00 --mem=50Gb --ntasks=1 --cpus-per-task=1 --partition=lab-mpinsky \
+        --qos=pi-mpinsky \
+        --account=pi-mpinsky
+
+OUTDIR=/home/miclark/MpyrAdapt/data/processed
+
+module load multiqc
+
+multiqc -v -p -ip -f --data-dir --data-format tsv --cl-config "max_table_rows: 3000" --filename trimmed_report --outdir $OUTDIR/QC $OUTDIR
+
+# ran in < 2 minutes! 
+
 ```
 
 
+Make array key for alignment to reference genome
+```{bash, eval = FALSE}
+# code in make_alignment_key.sbatch
+# script to make alignment array key to run with wrapper-align_to_genome.sh
 
+KEY=/home/miclark/MpyrAdapt/scripts/alignment_key.txt
+INDIR=/home/miclark/MpyrAdapt/data/processed/merged
+
+ls $INDIR/*mrg.fq.gz | \
+    sed -E 's/.*\///' | \
+    sed -E 's/_mrg\.fq\.gz$//' | \
+    while read line; do
+        echo -e "$line\t$INDIR/${line}_r1.fq.gz\t$INDIR/${line}_r2.fq.gz\t$INDIR/${line}_mrg.fq.gz"
+    done > $KEY
+
+```
+
+Install bwa on hummingbird––using bwa-mem2 for now, but bwa is installed in case I need to use aln in the future
+```{bash, eval = FALSE}
+module load miniconda3
+conda create -n bwa
+conda activate bwa 
+conda install -c bioconda -c conda-forge bwa
+
+```
+
+Start array job to align to genome
+```{bash, eval = FALSE}
+sbatch ./scripts/wrapper-align_to_genome.sh # submitted as array job 126747
+
+# just do mem on merged and unmerged to begin with, if things look crazy, can compare mem and aln 
+
+```
 
 
