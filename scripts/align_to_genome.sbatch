@@ -28,14 +28,6 @@ line=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$ARRAY_KEY")
 
 IFS=$'\t' read -r SAMPLE_NAME FORWARDREAD REVERSEREAD MERGEDREAD <<< "$line"
 
-#IFS=$'\t' read -r SAMPLE_NAME  <<< "$line"
-#FORWARDREAD=${INDIR}/unmerged/${SAMPLE_NAME}_r1.fq.gz
-#REVERSEREAD=${INDIR}/unmerged/${SAMPLE_NAME}_r2.fq.gz
-#MERGEDREAD=${INDIR}/merged/${SAMPLE_NAME}_r1.fq.gz
-
-# BASE=$(basename "$FORWARDREAD")
-# SAMPLE_NAME=$(echo "${BASE}" | cut -d "_" -f 1,2 | cut -d "." -f 2)
-
 # text for troubleshooting
 echo using $REFERENCE 
 echo trying to locate files $FORWARDREAD and $REVERSEREAD and $MERGEDREAD
@@ -60,11 +52,14 @@ nmatch=0
 lstart=-3
 
 # need to check multiple headers to make sure sample barcodes converge (i.e. no sequencing error)
+tmpfile=$(mktemp)
+zcat "$FORWARDREAD" | head -n 4000 > "$tmpfile"
+
 while [ $nmatch -lt 10 ]
 do
 	lstart=$((lstart + 4))
 	lend=$((lstart + 1))
-	readheader=$(zcat "$FORWARDREAD" | sed -n "${lstart}p;${lend}q" | sed 's/ [[:digit:]]//')
+	readheader=$(sed -n "${lstart}p;${lend}q" "$tmpfile" | sed 's/ [[:digit:]]//')
 	readinfo=($(echo "$readheader" | perl -e 'chomp($read = <>); @arr = split(/:/,$read); print "@arr[2,3,$#arr]";'))
 	barcode=$(sed 's/+/-/' <<< "${readinfo[2]}")
 	readgroup="@RG\tID:${readinfo[0]}.${readinfo[1]}\tBC:${barcode}\tDS:${DATADS}\tLB:${samplib}\tPL:ILLUMINA\tPU:${readinfo[0]}.${readinfo[1]}.${barcode}\tSM:${SAMPLE_NAME}"
@@ -73,6 +68,7 @@ do
 	prevrg="$readgroup"
 done
 
+rm "$tmpfile"
 echo using $readgroup
 
 ###

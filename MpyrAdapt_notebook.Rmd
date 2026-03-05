@@ -83,6 +83,109 @@ Carlsbad	-117.36	33.157
 Santa Barbara/Arroyo Quemada	-120.119	34.47
 ---
 
+#### Combine metadata and map
+
+```{r, echo = FALSE] 
+library(dplyr)
+library(leaflet)
+
+# First dataset - Site codes with coordinates
+alberto <- data.frame(
+  Abbreviation = c("AM", "MO", "PL", "PP", "PV", "SC", "SM"),
+  Site_Name = c("Andrew Molera", "Monterey", "Point Loma", "Santa Cruz",
+                "Palos Verdes", "Santa Cruz Island", "San Miguel Island"),
+  Latitude = c(36.283333, 36.617145, 32.678617, 36.952702, 33.720889, 34.032411, 34.051883),
+  Longitude = c(-121.876392, -121.895693, -117.253367, -121.9711, -118.336278, -119.524502, -120.33885),
+  Hemisphere = NA,
+  Morph = NA,
+  Collected_By = NA
+)
+
+# Second dataset - Main sampling data
+gonzalez <- data.frame(
+  Abbreviation = c("STL", "CAY", "AQ", "CI", "CB", "PLB", "PCH", "TOT",
+                   "DOC", "ALG", "MON", "BOC", "TUM", "CHO", "BAM", "ANC", "DAL"),
+  Site_Name = c("Stillwater Cove", "Cayucos", "Arroyo Quemado", "Catalina Island",
+                "Camp Pendleton", "Playa Blanca", "Punta Choros", "Totorolillo",
+                "Las Docas", "Algarrobo", "Las Monjas", "La Boca", "Tumbes",
+                "Chome", "Bahía Mansa", "Ancud", "Dalcahue"),
+  Latitude = c(36.565058, 35.446456, 34.47, 33.462, 33.157, -28.1851111,
+               -29.245712, -32.022839, -33.139851, -33.360022, -33.492179,
+               -33.903175, -36.623731, -36.806467, -40.581556, -41.865314, -42.382756),
+  Longitude = c(-121.943553, -120.932394, -120.119, -118.511, -117.36, -71.1651667,
+                -71.466174, -71.508658, -71.708218, -71.668728, -71.642485,
+                -71.834772, -73.093019, -73.177088, -73.738197, -73.831927, -73.655023),
+  Hemisphere = c("North", "North", "North", "North", "North", "South", "South",
+                 "South", "South", "South", "South", "South", "South", "South",
+                 "South", "South", "South"),
+  Morph = c("Pyrifera and Integrifolia", "Pyrifera", "Pyrifera", "Pyrifera",
+            "Pyrifera", "Integrifolia", "Integrifolia", "Integrifolia",
+            "Integrifolia", "Integrifolia", "Integrifolia", "Pyrifera",
+            "Pyrifera", "Pyrifera", "Pyrifera", "Pyrifera", "Pyrifera"),
+  Collected_By = c("S. T. Gonzalez", "S. T. Gonzalez", "F. Alberto", "F. Alberto",
+                   "F. Alberto", "S. T. Gonzalez", "S. T. Gonzalez", "S. T. Gonzalez",
+                   "S. T. Gonzalez", "S. T. Gonzalez", "S. T. Gonzalez", "S. T. Gonzalez",
+                   "S. T. Gonzalez", "S. T. Gonzalez", "S. T. Gonzalez", "S. T. Gonzalez",
+                   "S. T. Gonzalez")
+)
+
+# Third dataset - Sampling locations
+molano <- data.frame(
+  Abbreviation = c("CI", "CB", "SB"),
+  Site_Name = c("Catalina Island", "Carlsbad", "Santa Barbara/Arroyo Quemada"),
+  Latitude = c(33.462, 33.157, 34.47),
+  Longitude = c(-118.511, -117.36, -120.119),
+  Hemisphere = NA,
+  Morph = NA,
+  Collected_By = NA
+)
+
+# Combine all datasets
+all_sites <- bind_rows(
+  mutate(alberto, Dataset = "Alberto"),
+  mutate(gonzalez, Dataset = "Gonzalez"),
+  mutate(molano, Dataset = "Molano")
+) %>%
+  mutate(Row_ID = row_number())  # unique identifier for every row
+
+# Color palette by Dataset
+pal <- colorFactor(
+  palette = c("#2196F3", "#4CAF50", "#FF9800"),
+  domain = c("Alberto", "Gonzalez", "Molano")
+)
+
+# Build the map
+leaflet(all_sites) %>%
+  addProviderTiles(providers$Esri.OceanBasemap) %>%
+  addCircleMarkers(
+    lng = ~Longitude,
+    lat = ~Latitude,
+    color = ~pal(Dataset),
+    radius = 7,
+    stroke = TRUE,
+    weight = 1.5,
+    fillOpacity = 0.85,
+    popup = ~paste0(
+      "<b>", Site_Name, "</b> (", Abbreviation, ")<br>",
+      "Dataset: ", Dataset, "<br>",
+      "Lat: ", round(Latitude, 4), ", Lon: ", round(Longitude, 4),
+      ifelse(!is.na(Hemisphere), paste0("<br>Hemisphere: ", Hemisphere), ""),
+      ifelse(!is.na(Morph), paste0("<br>Morph: ", Morph), ""),
+      ifelse(!is.na(Collected_By), paste0("<br>Collected by: ", Collected_By), "")
+    ),
+    label = ~Site_Name
+  ) %>%
+  addLegend(
+    position = "bottomright",
+    pal = pal,
+    values = ~Dataset,
+    title = "Dataset",
+    opacity = 0.9
+  ) %>%
+  setView(lng = -100, lat = 0, zoom = 2)
+
+```
+
 #### Download genomes from SRA 
 
 install SRA toolkit to download data from the SRA to elkhorn
@@ -234,12 +337,39 @@ conda install -c bioconda -c conda-forge bwa
 
 ```
 
-Start array job to align to genome
+Index reference genome with bwa
 ```{bash, eval = FALSE}
-sbatch ./scripts/wrapper-align_to_genome.sh # submitted as array job 126747
-
-# just do mem on merged and unmerged to begin with, if things look crazy, can compare mem and aln 
+module load bwa-mem2/2.2.1
+reference=/home/miclark/MpyrAdapt/data/reference/Mpyr-NLJ1B.v3.hap1.softmasked.fasta
+bwa-mem2 index $reference
 
 ```
 
+Start array job to align to genome
+```{bash, eval = FALSE}
+sbatch ./scripts/wrapper-align_to_genome.sh # submitted as array job 126960
 
+# just do mem on merged and unmerged to begin with, if things look crazy, can compare mem and aln 
+
+# I was taking up the entire reserach partition, so I cancelled arrays 68-188, will re-run just those arrays with a node limit. 
+  # I also altered align_to_genome.sbatch so that it doesn't have to decompress read files multiple times to speed up jobs
+  # submitted as array job 151608 and 151660
+```
+
+Install qualimap
+```{bash, eval = FALSE}
+module load miniconda3
+
+conda create -n qualimap -c bioconda -c conda-forge qualimap
+conda activate qualimap
+
+qualimap --help
+```
+
+Run qualimap on aligned BAM files to check mapping quality and coverage
+```{bash, eval = FALSE}
+./scripts/wrapper-run_qualimap.sh # jobid 152761
+
+# summarize qualimap outut with multiQC 
+sbatch ./scripts/summarize_qualimap.sbatch # jobid 154531
+```

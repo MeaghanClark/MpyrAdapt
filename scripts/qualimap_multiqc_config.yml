@@ -1,0 +1,6 @@
+qualimap_config:
+  coverage_histogram_xmax: 2000
+
+custom_plot_config:
+  qualimap_coverage_histogram:
+    xmax: 2000

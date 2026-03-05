@@ -1,11 +1,11 @@
 # script to make alignment array key to run with wrapper-align_to_genome.sh
 
 KEY=/home/miclark/MpyrAdapt/scripts/alignment_key.txt
-INDIR=/home/miclark/MpyrAdapt/data/processed/merged
+INDIR=/home/miclark/MpyrAdapt/data/processed
 
-ls $INDIR/*mrg.fq.gz | \
+ls $INDIR/merged/*mrg.fq.gz | \
     sed -E 's/.*\///' | \
     sed -E 's/_mrg\.fq\.gz$//' | \
     while read line; do
-        echo -e "$line\t$INDIR/${line}_r1.fq.gz\t$INDIR/${line}_r2.fq.gz\t$INDIR/${line}_mrg.fq.gz"
+        echo -e "$line\t$INDIR/unmerged/${line}_r1.fq.gz\t$INDIR/unmerged/${line}_r2.fq.gz\t$INDIR/merged/${line}_mrg.fq.gz"
     done > $KEY

@@ -17,7 +17,7 @@ jobname=align
 array_key=/home/miclark/MpyrAdapt/scripts/alignment_key.txt
 
 #define dirs:
-outdir="/hb/groups/mpinsky_lab/2023_kelpEvol/data_processing/nextera_H_BATO_run_1/alignments" # name of directory where final alignments can live
+outdir="/home/miclark/MpyrAdapt/data/alignments" # name of directory where final alignments can live
 scratchnode="/hb/scratch/miclark/MpyrAdapt/alignments" # name of directory where intermediate files can live
 logfilesdir="/home/miclark/MpyrAdapt/logs/alignments" #name of directory to create and then write log files to
 
@@ -46,7 +46,7 @@ reference=/home/miclark/MpyrAdapt/data/reference/Mpyr-NLJ1B.v3.hap1.softmasked.f
 
 #submit job to cluster
 sbatch --job-name=$jobname \
-	--array=1-$array_no \
+	--array=94-188%10 \
 	--export=ARRAY_KEY=$array_key,REFERENCE=$reference,CPUS=$cpus,SCRATCHNODE=$scratchnode,OUTDIR=$outdir,LOGFILESDIR=$logfilesdir \
 	--cpus-per-task=$cpus \
 	--mem-per-cpu=$ram_per_cpu \
