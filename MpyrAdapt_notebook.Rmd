@@ -83,11 +83,48 @@ Carlsbad	-117.36	33.157
 Santa Barbara/Arroyo Quemada	-120.119	34.47
 ---
 
+#### Bemmels et al. PRJNA1140647/CCGP data
+
+---
+Site.ID      Lat      Long
+AVI 35.24408 -120.9011
+AVI 35.24124 -120.8955
+BCP 33.44844 -118.4789
+BCP 33.44768 -118.5117
+BGC 36.06888 -121.6010
+BOB 38.31320  123.0514
+BOO 32.85220 -117.2760
+CAR 36.26315 -121.8566
+DAN 33.54213 -117.7950
+HAL 33.52987 -117.7809
+HAZ 35.28000 -120.8800
+HAZ 35.28000 -120.8800
+IRC 33.44768 -118.5117
+LAJ 32.80959 -117.2866
+MAL 34.02193 -118.7739
+MILL 35.97976 -121.4905
+MOH 34.39456 -119.7300
+MPC 34.01923 -118.7877
+PAO 33.70694 -118.2859
+PV 33.72030 -118.3372
+SHB 35.16902 -120.6971
+SHB 35.16902 -120.6971
+STL 36.56012 -121.9473
+TER 36.94487 -122.0643
+TWH 33.44549 -118.4983
+TWH 33.42659 -118.5062
+VEN 34.35552 -119.4412
+---
+
+
 #### Combine metadata and map
 
-```{r, echo = FALSE] 
+```{r, echo = FALSE, include = FALSE}
 library(dplyr)
 library(leaflet)
+```
+
+```{r, echo = FALSE}
 
 # First dataset - Site codes with coordinates
 alberto <- data.frame(
@@ -140,18 +177,23 @@ molano <- data.frame(
   Collected_By = NA
 )
 
+# CCGP
+ccgp <- read.csv("./metadata/Mpyr_CCGP_ID.csv") |> distinct(Site.ID, Lat, Long, General.notes)
+colnames(ccgp) <- c("site", "Latitude", "Longitude", "Notes")
+
 # Combine all datasets
 all_sites <- bind_rows(
   mutate(alberto, Dataset = "Alberto"),
   mutate(gonzalez, Dataset = "Gonzalez"),
-  mutate(molano, Dataset = "Molano")
+  mutate(molano, Dataset = "Molano"), 
+  mutate(ccgp, Dataset = "CCGP")
 ) %>%
   mutate(Row_ID = row_number())  # unique identifier for every row
 
 # Color palette by Dataset
 pal <- colorFactor(
-  palette = c("#2196F3", "#4CAF50", "#FF9800"),
-  domain = c("Alberto", "Gonzalez", "Molano")
+  palette = c("#2196F3", "tomato", "#4CAF50", "#FF9800"),
+  domain = c("Alberto", "Gonzalez", "Molano", "CCGP")
 )
 
 # Build the map
