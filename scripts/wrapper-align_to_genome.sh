@@ -2,7 +2,7 @@
 
 # wrapper-align_to_genome.sh 
 # This script starts an array job to align trimmed and QC'd sequencing reads to a reference genome
-# Last updated 03/02/2026 by MI Clark, originally written by R Toczydlowski 
+# Last updated 03/11/2026 by MI Clark, originally written by R Toczydlowski 
 
 # define high level variables
 date=$(date +%m%d%Y)
@@ -14,7 +14,9 @@ jobname=align
 # e.g., 
 # ind1	ind1.1.fq.gz	ind1.2.fq.gz	ind1_mrg.fq.gz
 # ind2	ind2.1.gq.gz	ind2.2.fq.gz	ind2_mrg.fq.gz
-array_key=/home/miclark/MpyrAdapt/scripts/alignment_key.txt
+# array_key=/home/miclark/MpyrAdapt/scripts/alignment_key.txt
+
+array_key=/home/miclark/MpyrAdapt/scripts/CCGP_alignment_key.txt
 
 #define dirs:
 outdir="/home/miclark/MpyrAdapt/data/alignments" # name of directory where final alignments can live
@@ -28,7 +30,7 @@ if [ ! -d $scratchnode ]; then mkdir $scratchnode; fi
 
 # define slurm job details
 cpus=2 #number of CPUs to request/use per dataset
-ram_per_cpu=25G #amount of RAM to request/use per CPU CHANGE
+ram_per_cpu=10G #amount of RAM to request/use per CPU CHANGE
 array_no=$(cat $array_key | wc -l) # number of array jobs to run 
 
 # define executable and reference genome 
@@ -46,7 +48,7 @@ reference=/home/miclark/MpyrAdapt/data/reference/Mpyr-NLJ1B.v3.hap1.softmasked.f
 
 #submit job to cluster
 sbatch --job-name=$jobname \
-	--array=94-188%10 \
+	--array=1-$array_no%10 \
 	--export=ARRAY_KEY=$array_key,REFERENCE=$reference,CPUS=$cpus,SCRATCHNODE=$scratchnode,OUTDIR=$outdir,LOGFILESDIR=$logfilesdir \
 	--cpus-per-task=$cpus \
 	--mem-per-cpu=$ram_per_cpu \

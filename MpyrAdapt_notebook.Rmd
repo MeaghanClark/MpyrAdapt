@@ -22,12 +22,27 @@ MpyrAdapt/
 ├── scripts/
 │   ├── 0. sra_download.sbatch
 │   ├── 1. make_smbolic_links.sbatch
+│   ├── 1.5 make_smbolic_links_CCGP.sbatch
 │   ├── 2. trim_reads.sbatch
 │   ├── 3. make_alignment_key.sbatch
 │   ├── 4. wrapper-align_to_genome.sh
-│   ├── 5. align_to_genome.sbatch
-│   ├── 6. 
-│   └── 7. 
+│   ├──── align_to_genome.sbatch
+│   ├── 5. wrapper-run_qualimap.sh
+│   ├──── run_qualimap.sbatch
+│   ├── 6. summarize_qualimap.sbatch
+│   ├── 7. wrapper-bam_depth.sh
+│   ├──── bam_depth.sbatch
+│   ├── 8. make_depth_histograms.R
+│   ├── 9. wrapper-call_snps.sh
+│   ├──── call_snps.sbatch
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+│   ├── 
+
+│   └── 
 ├── 
 │   ├── 
 │   └── 
@@ -306,13 +321,14 @@ wget -q "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=sra&id=$(g
 
 ## Raw data processing 
 
-Standardize file names and set up symbolic links from Mpyr_WGS_data to MpyrAdapt/data/raw
+Standardize file names and set up symbolic links from Mpyr_WGS_data to MpyrAdapt/data/raw \
   - Naming convetion: Species_project_site-sample_number_readDirection, e.g. Mpyr_ALB_STL-03_1, Mpyr_MOL_STL-03_2, Mpyr_GON_STL-03_1
 
 ```{bash, eval = FALSE}
 
 # set up symbolic links from Mpyr_WGS_data to MpyrAdapt/data/raw
 sbatch ./scripts/make_symbolic_links.sbatch # Submitted batch job 109551
+sbatch ./scripts/make_symbolic_links_CCGP.sbatch # Submitted batch job 155406
 
 # two files not found
     # WARNING: /data/rufus/pinsky_lab/Mpyr/non_GCRG_WGS/PRJNA938791/fastq/SRR23817635_1.fastq.gz not found, skipping
@@ -326,7 +342,7 @@ ln -s /hb/groups/mpinsky_lab/Mpyr_ref_2025/hap1/Mpyr-NLJ1B.v3.hap1.softmasked.fa
 
 Run FastQC on raw reads, run MultiQC to summarize results, and check percent adapter dimer
 ```{bash, eval = FALSE}
-sbatch ./scripts/read_QC.sbatch "/home/miclark/MpyrAdapt/data/raw" "raw_reads_QC" # Submitted batch job 109557
+sbatch ./scripts/read_QC.sbatch "/home/miclark/MpyrAdapt/data/raw" "raw_reads_QC" # Submitted batch job 109557, Submitted batch job 155663
 
 ```
 
@@ -352,6 +368,7 @@ multiqc -v -p -ip -f --data-dir --data-format tsv --cl-config "max_table_rows: 3
 
 ```
 
+## Align to reference genome
 
 Make array key for alignment to reference genome
 ```{bash, eval = FALSE}
@@ -396,6 +413,8 @@ sbatch ./scripts/wrapper-align_to_genome.sh # submitted as array job 126960
 # I was taking up the entire reserach partition, so I cancelled arrays 68-188, will re-run just those arrays with a node limit. 
   # I also altered align_to_genome.sbatch so that it doesn't have to decompress read files multiple times to speed up jobs
   # submitted as array job 151608 and 151660
+
+# running separate alignment job with CCGP_alignment_key.txt for CCGP data, submitted as array job 181599
 ```
 
 Install qualimap
@@ -411,7 +430,47 @@ qualimap --help
 Run qualimap on aligned BAM files to check mapping quality and coverage
 ```{bash, eval = FALSE}
 ./scripts/wrapper-run_qualimap.sh # jobid 152761
+# running on CCGP data separately, job id 181803
 
-# summarize qualimap outut with multiQC 
-sbatch ./scripts/summarize_qualimap.sbatch # jobid 154531
+# summarize qualimap output with multiQC 
+sbatch ./scripts/summarize_qualimap.sbatch # jobid 154531, 182483 with CCGP data 
 ```
+
+Use samtools depth to generate per-site coverage histogram to inform depth cut-offs
+```{bash, eval = FALSE}
+# Strategy: job will be an array job, where each task is a different chromosome, so the list of chromosomes will act as a array key. Each task will use all bams
+
+# index .bam files (only need to happen once) from an interactive job
+salloc --time=24:00:00 --mem=100Gb --ntasks=1 --cpus-per-task=10 --partition=lab-mpinsky \
+        --qos=pi-mpinsky \
+        --account=pi-mpinsky
+module load samtools
+indir="/home/miclark/MpyrAdapt/data/alignments"
+samtools index -M -@ 10 ${indir}/*.bam 
+
+# chrom_list.txt is a list of chromosome names to use as an array key for the samtools depth job, which will run one chromosome per task in an array job
+
+./scripts/wrapper-bam_depth.sh 
+
+# Read output files into R and plot coverage histograms to inform depth cut-offs for variant calling
+
+sbatch ./scripts/make_depth_histograms.sbatch # jobid 194896
+
+```
+
+## Call SNPs
+For this project, we will use a join genotype call and genotype liklihood approach. 
+- Genotypes will be called with samples with >10X mean depth
+- Genotype liklihoods will be calucated for all samples 
+- Analyses with GLs can be confirmed with genotype calls 
+- Approach: call SNPs with bcftools mpileup and bcftools call. Loci will be filtered in two flavors: one for liklihoods and one for calls 
+
+```{bash, eval = FALSE}
+
+./scripts/wrapper-call_snps.sh # jobid 194785
+
+# [E::mpileup] the sequence "-s" not found: /home/miclark/MpyrAdapt/data/alignments/Mpyr_ALB_AM_11.rmdup.bam
+
+```
+
+

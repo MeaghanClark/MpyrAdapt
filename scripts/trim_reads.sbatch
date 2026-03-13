@@ -25,7 +25,7 @@ module list
 # define key variables
 INDIR=/home/miclark/MpyrAdapt/data/raw
 OUTDIR=/home/miclark/MpyrAdapt/data/processed
-FQPATTERN=*.fastq.gz
+FQPATTERN=*CCG*.fastq.gz # just CCGP files
 EXTPATTERN='_[0-9]\.fastq\.gz$'  # pattern match to fq extensions
 FWDEXT=_1.fastq.gz
 REVEXT=_2.fastq.gz

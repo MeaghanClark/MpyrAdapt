@@ -5,7 +5,7 @@
 #SBATCH --error /home/miclark/MpyrAdapt/logs/qualimap/sum_qual-%j.err
 #SBATCH --cpus-per-task=1
 #SBATCH --time=24:00:00
-#SBATCH --mem=24G 
+#SBATCH --mem=50G 
 #SBATCH --partition=lab-mpinsky
 #SBATCH --qos=pi-mpinsky
 #SBATCH --account=pi-mpinsky
