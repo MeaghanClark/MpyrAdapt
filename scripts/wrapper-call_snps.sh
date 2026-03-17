@@ -19,7 +19,7 @@ logfilesdir="/home/miclark/MpyrAdapt/logs/${jobname}"
 if [ ! -d $logfilesdir ]; then mkdir $logfilesdir; fi
 if [ ! -d $outdir ]; then mkdir $outdir; fi
 
-# make alignment key
+# alignment key
 # this file should be a list of chromosomes from the reference genome
 # e.g., 
 # chrom1

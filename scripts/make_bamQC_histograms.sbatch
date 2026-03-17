@@ -1,11 +1,11 @@
 #!/bin/bash
 
-#SBATCH --job-name=make_symbolic_links
-#SBATCH --output /home/miclark/MpyrAdapt/logs/make_links-%j.out
-#SBATCH --error /home/miclark/MpyrAdapt/logs/make_links-%j.err
+#SBATCH --job-name=bamQC_hist
+#SBATCH --output /home/miclark/MpyrAdapt/logs/bamQC_hist-%j.out
+#SBATCH --error /home/miclark/MpyrAdapt/logs/bamQC_hist-%j.err
 #SBATCH --cpus-per-task=1
-#SBATCH --time=4:00:00
-#SBATCH --mem=120G 
+#SBATCH --time=24:00:00
+#SBATCH --mem=300G 
 #SBATCH --partition=lab-mpinsky
 #SBATCH --qos=pi-mpinsky
 #SBATCH --account=pi-mpinsky
@@ -15,9 +15,12 @@ module load r/4.4.1
 module list 
 
 # define variables
-EXEC="/home/miclark/MpyrAdapt/scripts/make_depth_histograms.R"
-STATS_DIR="/home/miclark/MpyrAdapt/data/alignments/depth"
-OUTFILE="/home/miclark/MpyrAdapt/data/alignments/depth/depth_histograms.pdf"
+EXEC="/home/miclark/MpyrAdapt/scripts/make_bamQC_histograms.R"
+STATS_DIR="/home/miclark/MpyrAdapt/data/alignments/bamstats"
+OUTFILE="/home/miclark/MpyrAdapt/data/alignments/bamstats/bamQC_histograms.pdf"
+
+# verify STATS_DIRE exists; if not, make it
+if [ ! -d $STATS_DIR ]; then mkdir $STATS_DIR; fi
 
 # run code
 CMD="$EXEC $STATS_DIR $OUTFILE"
