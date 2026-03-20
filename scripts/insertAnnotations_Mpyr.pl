@@ -247,10 +247,10 @@ if ($genorep) {
 	$grp_gq_string = "##INFO=<ID=REPGQ,Number=" . scalar(@grpid) . ",Type=Integer,Description=\"Number of genotypes with GQ of 15 or above for classes " . join(', ',@grpid) . "\">\n";
 	$grp_dp_string = "##INFO=<ID=REPDP,Number=" . scalar(@grpid) . ",Type=Integer,Description=\"Number of genotyped samples with DP of 4 or greater for classes " . join(', ',@grpid) . "\">\n";
 }
-my $lowdp_string = "##FILTER=<ID=LowDP,Description=\"Site DP less than 0.5 x median covered genome-wide DP\">\n";
+my $lowdp_string = "##FILTER=<ID=LowDP,Description=\"Site DP less than 0.1 x median covered genome-wide DP\">\n";
 my $highdp_string = "##FILTER=<ID=HighDP,Description=\"Site DP greater than 2 x median covered genome-wide DP\">\n";
 my $highhet_string = "##FILTER=<ID=HighHet,Description=\"ExcHet below 1e4\">\n";
-my $lowcov_string = "##FILTER=<ID=LowCov,Description=\"Total site depth below 0.5x the median of depth from alignments\">\n";
+my $lowcov_string = "##FILTER=<ID=LowCov,Description=\"Total site depth below 0.1x the median of depth from alignments\">\n";
 my $excesscov_string = "##FILTER=<ID=ExcessCov,Description=\"Total site depth above 2x the median of depth from alignments\">\n";
 my $lowmq_string = "##FILTER=<ID=LowMQ,Description=\"Root mean square map quality below 35\">\n";
 my $mqzero_string = "##FILTER=<ID=ExcessMQ0,Description=\"Greater than 10% of reads have map quality of zero\">\n";

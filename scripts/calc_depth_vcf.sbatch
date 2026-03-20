@@ -11,21 +11,28 @@
 #SBATCH --account=pi-mpinsky
 
 module load bcftools 
+module load vcftools/0.1.16
 module load parallel/20200122
 module list 
 
 VCF_PATTERN="MpyrAdapt_annotated_*.vcf.gz"
-OUTPUT="/home/miclark/MpyrAdapt/data/variants/filtering/annotatedVCF_mean_depth_per_sample.txt"
+OUTDIR="/home/miclark/MpyrAdapt/data/variants/filtering/annotated_depth"
 INDIR="/hb/scratch/miclark/MpyrAdapt/variants/annotatedVCFs"
 
-parallel -j31 'bcftools view -f PASS {} | bcftools query -f "[%SAMPLE\t%DP\n]"' \
-    ::: ${INDIR}/$VCF_PATTERN | \
-awk '
-    $2 != "." { sum[$1] += $2; count[$1]++ }
-    END {
-        print "SAMPLE\tMEAN_DEPTH\tN_SITES"
-        for (s in sum) print s, sum[s]/count[s], count[s]
-    }
-' OFS='\t' > "$OUTPUT"
+# all sites 
+export OUTDIR
+parallel -j32 '
+    CHROM=$(basename {} .vcf.gz | sed "s/MpyrAdapt_annotated_//")
+    vcftools --gzvcf {} --depth --out  ${OUTDIR}/annotated_depth_${CHROM}
+
+' ::: ${INDIR}/$VCF_PATTERN
+
+# PASS sites
+#export OUTDIR
+#parallel -j32 '
+#    CHROM=$(basename {} .vcf.gz | sed "s/MpyrAdapt_annotated_//")
+#    vcftools --gzvcf {} --remove-filtered-all --depth --out  ${OUTDIR}/annotated_depth_${CHROM}
+#
+#' ::: ${INDIR}/$VCF_PATTERN
 
 ## END SCRIPT

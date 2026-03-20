@@ -10,6 +10,8 @@ editor_options:
 
 Project begun Februray 2026. Goal is to combine multiple *Macrocystis* whole genome resequencing data sets to learn about structure, inbreeding, and local adaptation. 
 
+# Notes
+- need to re-annotate VCF with updated PF masks as of 3/18/2026
 
 ## Directory structure
 
@@ -442,6 +444,13 @@ Run qualimap on aligned BAM files to check mapping quality and coverage
 
 # summarize qualimap output with multiQC 
 sbatch ./scripts/summarize_qualimap.sbatch # jobid 154531, 182483 with CCGP data 
+
+# get list of individuals with >1X coverage 
+cd /home/miclark/MpyrAdapt/data/alignments/QC
+grep "mean coverageData" Mpyr_*.rmdup/*.txt | \
+sed 's/\.rmdup.*= /\t/; s/X//; s/.*\///' | \
+awk -F'\t' '$2 > 1 {print $1}' > /home/miclark/MpyrAdapt/scripts/pass_depth_inds.txt
+
 ```
 
 Install bamstats 
@@ -480,79 +489,25 @@ sbatch ./scripts/make_bamQC_histograms.sbatch # job id 199350
 ```
 
 Based on bamstats output, reasonable depth cut-offs are: 
-- min depth: 871 reads (median * 0.5) 
+- min depth: 871 reads (median * 0.5) or 174 (median *0.1) 
 - max depth: 3486 reads (median * 2) 
-
-*OUTDATED*: Use samtools depth to generate per-site coverage histogram to inform depth cut-offs
-```{bash, eval = FALSE}
-# Strategy: job will be an array job, where each task is a different chromosome, so the list of chromosomes will act as a array key. Each task will use all bams
-
-# index .bam files (only need to happen once) from an interactive job
-salloc --time=24:00:00 --mem=100Gb --ntasks=1 --cpus-per-task=10 --partition=lab-mpinsky \
-        --qos=pi-mpinsky \
-        --account=pi-mpinsky
-module load samtools
-indir="/home/miclark/MpyrAdapt/data/alignments"
-samtools index -M -@ 10 ${indir}/*.bam 
-
-# chrom_list.txt is a list of chromosome names to use as an array key for the samtools depth job, which will run one chromosome per task in an array job
-
-./scripts/wrapper-bam_depth.sh 
-
-# Read output files into R and plot coverage histograms to inform depth cut-offs for variant calling
-
-sbatch ./scripts/make_depth_histograms.sbatch # jobid 198073
-
-```
 
 ## Make pass/fail masks 
 Make pass/fail .bed files based on depth and mapping quality cut-offs
 ```{bash, eval = FALSE}
 
+# original cut offs: 870, 3486, but issues retaining downstream, job id 199424
+# revised: 174, 3486, jobid 201017
 ./scripts/wrapper-generate_PF_masks.sh # job id 199424
 
 # summarize pass/fail reports
-reportdir=/home/miclark/MpyrAdapt/data/variants/masks/reports
+reportdir=/home/miclark/MpyrAdapt/data/variants/masks/pass_fail/reports
 for f in ${reportdir}/*.txt; do
   awk '/Number sites analyzed:/{total=$NF} /Number FAIL sites:/{fail=$NF} END{printf "%s: %.2f%%\n", FILENAME, (fail/total)*100}' "$f"
 done
 
 ```
 Based on pass/fail reports, ~20-25% of sites genome wide were marked as FAIL for most scaffolds. Scaffols 31 was almost entirely FAILed 
-
----
-MpyrAdapt_PF_mask_10.txt: 30.59%
-MpyrAdapt_PF_mask_11.txt: 22.27%
-MpyrAdapt_PF_mask_12.txt: 46.66%
-MpyrAdapt_PF_mask_13.txt: 33.28%
-MpyrAdapt_PF_mask_14.txt: 28.12%
-MpyrAdapt_PF_mask_15.txt: 16.21%
-MpyrAdapt_PF_mask_16.txt: 29.15%
-MpyrAdapt_PF_mask_17.txt: 27.16%
-MpyrAdapt_PF_mask_18.txt: 34.79%
-MpyrAdapt_PF_mask_19.txt: 23.64%
-MpyrAdapt_PF_mask_1.txt: 24.81%
-MpyrAdapt_PF_mask_20.txt: 31.22%
-MpyrAdapt_PF_mask_21.txt: 20.02%
-MpyrAdapt_PF_mask_22.txt: 21.31%
-MpyrAdapt_PF_mask_23.txt: 33.54%
-MpyrAdapt_PF_mask_24.txt: 46.26%
-MpyrAdapt_PF_mask_25.txt: 16.66%
-MpyrAdapt_PF_mask_26.txt: 26.16%
-MpyrAdapt_PF_mask_27.txt: 19.86%
-MpyrAdapt_PF_mask_28.txt: 17.77%
-MpyrAdapt_PF_mask_29.txt: 20.46%
-MpyrAdapt_PF_mask_2.txt: 29.84%
-MpyrAdapt_PF_mask_30.txt: 18.12%
-MpyrAdapt_PF_mask_31.txt: 100.00%
-MpyrAdapt_PF_mask_3.txt: 23.04%
-MpyrAdapt_PF_mask_4.txt: 20.66%
-MpyrAdapt_PF_mask_5.txt: 29.51%
-MpyrAdapt_PF_mask_6.txt: 24.03%
-MpyrAdapt_PF_mask_7.txt: 22.96%
-MpyrAdapt_PF_mask_8.txt: 24.18%
-MpyrAdapt_PF_mask_9.txt: 17.60%
----
 
 
 ## Call SNPs
@@ -624,7 +579,7 @@ write.table(grp_data, file = "/home/miclark/MpyrAdapt/scripts/Mpyr_groups_qc.txt
 Run insertAnnotations_Mpyr.pl
 ```{bash, eval = FALSE}
 
-./wrapper-annotate_VCF.sh # job id 199582
+./wrapper-annotate_VCF.sh # job id 199582, 201048
 
   # needed to replace MoreUtils perl module with Util, probably because elkhorn has a newer version of perl than the script was written for. 
 ```
@@ -636,34 +591,83 @@ My strategy is to get a filter of high quality SNP sites. Then, those sites will
 If many individuals fail, I may want to go back and exclude them from bamstats when deciding cut-offs. 
 *Eventually, I probably want to filter individuals from coverage at the bam stage* 
 
-Get coverage at PASS sites to determine if I should drop any low coverage individuals 
+Get coverage at PASS sites to determine if I should drop any low coverage individuals, now using depth from bam files
 ```{bash, eval = FALSE}
+# run vcftools to get individual depth
+sbatch ./scripts/calc_depth_vcf.sbatch #jobid 200804, 201081
 
-sbatch ./scripts/calc_depth_vcf.sbatch # job id 200274
+# summarize depth per individual across scaffolds 
+cd /home/miclark/MpyrAdapt/data/variants/filtering/annotated_depth
+rm annotated_depth_31.idepth # remove 31 because no reads mapped 
+awk 'FNR>1 {depth[$1] += $2 * $3; sites[$1] += $2} END {print "INDV\tTOTAL_SITES\tWEIGHTED_MEAN_DEPTH"; for (i in depth) print i"\t"sites[i]"\t"depth[i]/sites[i]}' *.idepth | sort > annotated_depth_per_ind.txt
+```
 
+Make depth histogram in R 
+```{r, eval = FALSE}
+depth <- read.csv("/home/miclark/MpyrAdapt/data/variants/filtering/annotated_depth/annotated_depth_per_ind.txt", header = TRUE, sep = "\t")
+
+depth$source <- unlist(lapply(X = strsplit(depth$INDV, "_"), FUN = function(x){x[[2]]}))
+
+pdf(file = "/home/miclark/MpyrAdapt/data/variants/filtering/annotated_depth/ind_mean_depth.pdf")
+hist(depth$WEIGHTED_MEAN_DEPTH, breaks = 1e2, main = "mean depth per individuals from annotated VCF")
+
+hist(depth$WEIGHTED_MEAN_DEPTH, breaks = 2e2, 
+    main = "mean depth per individuals from annotated VCF", 
+    xlim = c(0, 5))
+
+hist(depth[which(depth$source == "MOL"),"WEIGHTED_MEAN_DEPTH"], 
+    main = "Molano samples")
+
+dev.off()
+
+range(depth$WEIGHTED_MEAN_DEPTH) # 0.00167871 17.21990000
+
+
+range(depth[which(depth$source == "MOL"),"WEIGHTED_MEAN_DEPTH"]) # 0.0248611 1.8621700
+range(depth[which(depth$source == "CCG"),"WEIGHTED_MEAN_DEPTH"]) # 0.00167871 0.10683900
+
+sum(depth[which(depth$source == "CCG"),"WEIGHTED_MEAN_DEPTH"] > 0.2) # keep... 0 CCGP samples
+sum(depth[which(depth$source == "CCG"),"WEIGHTED_MEAN_DEPTH"] > 0.03) # keep... 61 CCGP samples
+sum(depth$WEIGHTED_MEAN_DEPTH > 1) # keep... 138  samples
+sum(depth$WEIGHTED_MEAN_DEPTH > 0.5) # keep... 153  samples
+
+# This is really low depth... might want to reassess. 
+
+# list of FAIL individuals
+FAIL <- depth[which(depth$WEIGHTED_MEAN_DEPTH < 0.4),"INDV"]
+PASS <- depth[which(depth$WEIGHTED_MEAN_DEPTH > 0.4),"INDV"]
+
+write.table(FAIL, file = "/home/miclark/MpyrAdapt/scripts/fail_depth_inds.txt", 
+    quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+write.table(PASS, file = "/home/miclark/MpyrAdapt/scripts/pass_depth_inds_vcf.txt", 
+    quote = FALSE, row.names = FALSE, col.names = FALSE)
+    
 ```
 
 
-Filter out FAIL individuals 
+Filter out FAIL individuals based on depth 
 ```{bash, eval = FALSE} 
-
 
 # Output: list of individuals that pass quality filtering to use as BAMLIST when converting genotype likelihoods 
 
+/home/miclark/MpyrAdapt/scripts/pass_depth_inds.txt # list from qualimap output
+
+# use -S flag in script
 ``` 
 
 
-Make line of code to filter SNPs
+Make line of code to filter SNPs *not currently using output*
 ```{r, eval = FALSE}
 
 # read in list of individuals generated above
-inds <- read.csv("/home/miclark/MpyrAdapt/scripts/all_individuals.txt", header = FALSE)$V1 # update for high quality individuals 
+inds <- read.csv("/home/miclark/MpyrAdapt/scripts/pass_depth_inds.txt", header = FALSE)$V1 # update for high quality individuals 
 
 # get sites of origin, clean naming differences (whoops) 
 sites_of_origin <- unlist(lapply(X = strsplit(inds, "_"), FUN = function(x){return(x[3])}))
 sites_of_origin <- unlist(lapply(X = strsplit(sites_of_origin, "-"), FUN = function(x){return(x[1])}))
 
-sites <- unique(sites_of_origin) # 42 sites! 
+sites <- unique(sites_of_origin) # 36! 
 
 index_vec <- vector(length = length(sites))
 for(i in 1:length(sites)){
@@ -678,108 +682,90 @@ colnames(grp_data) <- c("#GROUP", "INDEX", "MIN_GQ", "MIN_DP")
 
 ### depth part
 for(i in 1:nrow(grp_data)){
-  cat(" N_PASS(GT[", grp_data[i,"INDEX"], "]!=\"mis\" & FMT/DP >= 2) >= ", round(length(unlist(strsplit(grp_data[i,"INDEX"], ",")))*.9), " &&", 
+  cat(" N_PASS(GT[", grp_data[i,"INDEX"], "]!=\"mis\" & FMT/DP >= 1) >= ", round(length(unlist(strsplit(grp_data[i,"INDEX"], ",")))*.8), " &&", 
       sep = "")
 }
 
 ### genotype quality part: 
-for(i in 1:nrow(grp_data)){
-  cat("$", i, " >= ", round(length(unlist(strsplit(grp_data[i,"INDEX"], ",")))*.9), " && ",
-      sep = "")
-}
+#for(i in 1:nrow(grp_data)){
+#  cat("$", i, " >= ", round(length(unlist(strsplit(grp_data[i,"INDEX"], ",")))*.9), " && ",
+#      sep = "")
+#}
 
+# copy lines to extract_pos_qc_SNPs.sbatch 
 
 ```
 
 
-Make .pos file of sites that pass preliminary filtering to pass to angsd
+Make .pos file of sites that pass preliminary filtering to pass to angsd *not currently using, need to figure out why no SNPs are passing through filter*
 ```{bash, eval = FALSE}
 
-# extract_qc_SNPs.sbatch 
-# use list of individuals generated above for filtering
-# make per scaffold using a wrapper, then merge pos files together
+./scripts/wrapper-extract_pos_qc_sites.sh 
 
-#!/bin/bash
+# how many sites passed filtering? out of 290148909
 
-########## SBATCH Lines for Resource Request ##########
+  # with individual mean depth cut off of 0.02 and >= 2 reads in 90% of individuals in a population, no sites pass
+  # with individual mean depth cut off of 0.2 and >=1 read in 90% of individuals in a population, no sites pass!  jobid 200881
+  # with individual mean depth cut off of 0.4 and >=1 read in 80% of individuals in a population, jobid 200986, cancelled
 
-#SBATCH --time=48:00:00             # limit of wall clock time - how long the job will run (same as -t)
-#SBATCH --cpus-per-task=1         # number of CPUs (or cores) per task (same as -c)
-#SBATCH --mem-per-cpu=10G            # memory required per allocated CPU (or core)
-#SBATCH --job-name=extract_qc_pos      # you can give your job a name for easier identification (same as -J)
-#SBATCH --output="/mnt/home/clarkm89/petrels/log_extract_qc_pos/extract_qc_snps_%A.out"
-#SBATCH --error="/mnt/home/clarkm89/petrels/log_extract_qc_pos/extract_qc_snps_%A.err"
-#SBATCH --account=bradburd
+  # issue might be the minimum depth filter I used for the PASS/FAIL masks. Sites that are unique to the CCGP dataset and ~1X are being filtered out. 
+    # changed mindepth from 870 to 174 (0.5X to 0.1X of the median)
+    # re-running doing other quality filtering (minmq0, mq, quality) in bcftools instead of "-f PASS" 
+    # depth from all sites (no filtering) VCF didn't change much. Still big gap between alignment and vcf in terms of depth.  
 
-##########
-
-VCF="/mnt/home/clarkm89/petrels/called_snps/annotated_vcf/${SPP}_norm_annotated.vcf.gz"
-SITES="/mnt/home/clarkm89/petrels/called_snps/annotated_vcf/${SPP}_qc_snps.pos"
-AB_CONTIGS="/mnt/home/clarkm89/petrels/allelic_balance/${SPP}_exclude_regions.txt"
-
-# 90% of individuals in a population need to have at least two reads 
-# filter low coverage individual 
-# bcftools view -s "/mnt/home/clarkm89/petrels/alignments/ref/MARK_322.rmdup.bam,/mnt/home/clarkm89/petrels/alignments/ref/MARK_329.rmdup.bam,/mnt/home/clarkm89/petrels/alignments/ref/MASP_13.rmdup.bam,/mnt/home/clarkm89/petrels/alignments/ref/MASP_16.rmdup.bam,/mnt/home/clarkm89/petrels/alignments/ref/MASP_7.rmdup.bam,/mnt/home/clarkm89/petrels/alignments/ref/MASP_10.rmdup.bam" $VCF \
-#| bcftools view -f "PASS" -i 'N_PASS(FMT/DP[0-1] > 1) > 1 && N_PASS(FMT/DP[2-5] > 1) > 3' -m 2 -M 2 -v snps \
-#| bcftools query -f '%CHROM\t%POS\n' | uniq > $SITES
-bcftools view -f "PASS" -T "^${AB_CONTIGS}" -i 'N_PASS(FMT/DP[0-1] > 1) > 1 && N_PASS(FMT/DP[2-5] > 1) > 3' -m 2 -M 2 -v snps $VCF \
-  bcftools query -f '%CHROM\t%POS\n' | uniq > $SITES
-
-wait
-
-angsd sites index $SITES
-
-printf "\nfinished\n"
+  # with no mindepth for sites, individual mean depth cut off of 0.4 and >=1 read in 80% of individuals in a population, jobid 
 
 
+VCF="$VCF"
+INDS="$INDS"
+
+for clause in \
+    'N_PASS(GT[0,1,2,3,4,5,6,7,8,9]!="mis" & FMT/DP >= 1) >= 8' \
+    'N_PASS(GT[10,11,12,13,14,15,16,17,18,19]!="mis" & FMT/DP >= 1) >= 8' \
+    'N_PASS(GT[20,21,22,23,24,25,26,27,28]!="mis" & FMT/DP >= 1) >= 7' \
+    'N_PASS(GT[29,30,31,32,33,34,35,36,37]!="mis" & FMT/DP >= 1) >= 7' \
+    'N_PASS(GT[38,39,40,41,42,43,44,45,46]!="mis" & FMT/DP >= 1) >= 7' \
+    'N_PASS(GT[47,48,49,50,51,52,53,54,55]!="mis" & FMT/DP >= 1) >= 7' \
+    'N_PASS(GT[56,57,58,59,60,61,62,63,64,65]!="mis" & FMT/DP >= 1) >= 8' \
+    'N_PASS(GT[66,67,68,69]!="mis" & FMT/DP >= 1) >= 3' \
+    'N_PASS(GT[70,71,72,73,74]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[75,76,77,78,79]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[80,81,82,83,84]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[85,86,87,88,89]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[90,91,92,93,94]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[95,96,97,98,99]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[100,101,102,103]!="mis" & FMT/DP >= 1) >= 3' \
+    'N_PASS(GT[104,105,106,107,108]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[109,110,111,112,113]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[114,115,116,117,118]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[119,120,121,122,123,124,125,126,127,128]!="mis" & FMT/DP >= 1) >= 8' \
+    'N_PASS(GT[129,130,131,132,133]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[134,135,136,137,138]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[139,140,141,142,143]!="mis" & FMT/DP >= 1) >= 4' \
+    'N_PASS(GT[144,145,146,147,148,149,150,151,152,153,154]!="mis" & FMT/DP >= 1) >= 9' \
+    'N_PASS(GT[155,156]!="mis" & FMT/DP >= 1) >= 2'; do
+    count=$(bcftools view -S "$INDS" -i "$clause" "$VCF" | bcftools query -f '%CHROM\t%POS\n' | wc -l)
+    echo "$count  $clause"
+done
+
+# It looks like some of the Chilean sites are driving the issues with filtering. I will drop and move into calling genotype likelihoods
+
+# editing pass_depth_inds.txt to remove Chilean sites, new file: 
+
+grep -v -E "GON_PLB|GON_PCH|GON_TOT|GON_DOC|GON_ALG|GON_MON|GON_BOC|GON_TUM|GON_CHO|GON_BAM|GON_ANC|GON_DAL|GON_CAY|GON_STL" pass_depth_inds.txt > pass_depth_northern_inds.txt
 
 ```
 
 
-## Convert to genotype likelihoods
+## Calculate genotype likelihoods at filtered sites
 requires: 
 - list of qc-passed and LD-pruned SNPs where we trust genotype likelihoods. Maybe skip LD prune for now? 
 - 
 ```{bash, eval = FALSE}
 
-#!/bin/bash
+sbatch ./scripts/call_geno_likelihoods.sbatch # jobid 201127
 
-# Script written by M. Clark, 2/24/2023
-# This script calculates genotype likelihoods from a list of bamfiles
-
-# usage: 
-# call_geno_likelihood.sh
-
-module list
-
-SPP=$1
-OUTDIR=${SPP}_geno_likelihoods_LD
-SITES=/mnt/home/clarkm89/petrels/called_snps/annotated_vcf/LD_prune/${SPP}_norm_annotated_qcLDPrune.pos
-BAMLIST=/mnt/home/clarkm89/petrels/${SPP}_bamlist.txt
-
-if [ ! -d ./$OUTDIR ]; then mkdir ./$OUTDIR; fi
-
-# trim pos file 
-
-cut -f1 ${SITES} | sort | uniq > ${OUTDIR}/${SPP}_chrs.txt
-
-# index pos file
-angsd sites index ${SITES}
-
-# index bam files 
-while read bam; do
-  if [ ! -f "${bam}.bai" ]; then
-    echo "Indexing $bam..."
-    samtools index "$bam"
-  else
-    echo "Index exists for $bam, skipping..."
-  fi
-done < $BAMLIST
-
-angsd -b ${BAMLIST} -GL 1 -doMaf 1 -doMajorMinor 1 -SNP_pval 1e-4 -doGlf 2 -sites ${SITES} -rf ${OUTDIR}/${SPP}_chrs.txt -out ./$OUTDIR/${SPP}_gl
-
-echo done calling genotype likelihoods
-
+# in the future, want to drop small contigs and just call gls from the scaffolds
 
 ```
 
@@ -787,6 +773,171 @@ echo done calling genotype likelihoods
 
 ## PCA 
 
+Create list of sites not in LD
+```{bash, eval = FALSE}
+
+# adapted from: https://github.com/nt246/physalia-lcwgs/blob/main/day_3/markdowns/ld.md
+
+# get all sites in gl files (passed quality filtering in angsd) 
+OUTDIR="/home/miclark/MpyrAdapt/data/geno_likelihoods"
+zcat $OUTDIR/Mpyr_north_gl.mafs.gz | tail -n +2 | awk '{print $1":"$2}' > $OUTDIR/all_sites.pos
+
+# look at scaffold sizes 
+cut -d':' -f1 $OUTDIR/all_sites.pos | sort | uniq -c | sort -rn | head -20
+
+# pick largest scaffolds to fit LD decay curve 
+grep -E "^scaffold1:|^scaffold2:" $OUTDIR/all_sites.pos > $OUTDIR/decay_scaffolds.pos
+
+# fit model of LD decay to inform --max_kb_dist
+sbatch ./scripts/run_ngsLD_decay.sbatch # 201708, 201711, 201713, 201714
+
+# look at mean r2 in distance bins
+awk '{print int($3/1000)"kb", $7}' $OUTDIR/ld_decay.out | \
+    awk '{sum[$1]+=$2; count[$1]++} END {for (k in sum) print k, sum[k]/count[k]}' | \
+    sort -k1 -n | head -20
+
+# LD seems to decay within ~5Kb
+
+# make condan environment with dependencies for LD pruning via ngsLD
+# create new environment
+conda create -n ngsld_deps -c conda-forge -c bioconda \
+    r-base \
+    r-optparse \
+    r-ggplot2 \
+    r-reshape2 \
+    r-plyr \
+    r-gtools \
+    python=3.9 \
+    pandas \
+    graph-tool
+
+python -c "import pandas; import graph_tool; print('OK')" # verify 
+
+
+# Run ngsLD with full dataset with informative --max_kb_dist and do pruning
+sbatch ./scripts/run_ngsLD_prune.sbatch # 201732, 201735, running with random sampling: 203170
+  # using modified python script because of dependancy issues
+
+```
+
+# Do PCA
+```{bash, eval = FALSE}
+
+# don't run on small contigs 
+
+# initial run on salloc wit no ld pruning: 
+module load pcangsd/1.36.1
+
+OUTDIR="/home/miclark/MpyrAdapt/data/geno_likelihoods"
+RESULTS="/home/miclark/MpyrAdapt/results/pca/no_LD_prune"
+if [ ! -d $RESULTS ]; then mkdir -p $RESULTS; fi
+
+pcangsd -b $OUTDIR/Mpyr_north_gl.beagle.gz -o $RESULTS/Mpyr_north_pcangsd
+
+# correct script set up to run with pruned GLs
+sbatch ./scripts/run_pcangsd.sbatch # add path to chrom list
+
+
+# plot in R, interactively
+
+library(tidyverse)
+library(Polychrome)
+
+pal <- alphabet.colors(26)
+names(pal) <- NULL
+
+#Load the covariance matrix
+cov <- as.matrix(read.table("/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd.cov", header = F))
+
+inds <- read.csv("/home/miclark/MpyrAdapt/scripts/pass_depth_northern_inds.txt", header = F, sep = "\t")$V1
+
+# get sites of origin, clean naming differences (whoops) 
+sites_of_origin <- unlist(lapply(X = strsplit(inds, "_"), FUN = function(x){return(x[3])}))
+sites_of_origin <- unlist(lapply(X = strsplit(sites_of_origin, "-"), FUN = function(x){return(x[1])}))
+
+#We will also add a column with population assignments
+pop <- unique(sites_of_origin)
+         
+mme.pca <- eigen(cov) #perform the pca using the eigen function. 
+
+eigenvectors = mme.pca$vectors #extract eigenvectors 
+pca.vectors = as_tibble(cbind(sites_of_origin, data.frame(eigenvectors))) #combine with our population assignments
+
+pca = ggplot(data = pca.vectors, aes(x=X1, y=X2, colour = sites_of_origin)) + geom_point() + scale_color_manual(values = pal)
+
+ggsave(filename = "/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd.pdf", plot = pca) #change file path if data on your own computer
+
+pca34 = ggplot(data = pca.vectors, aes(x=X3, y=X4, colour = sites_of_origin)) + geom_point() + scale_color_manual(values = pal)
+
+ggsave(filename = "/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd_PC34.pdf", plot = pca34) #change file path if data on your own computer
+
+# calculate % variance explained
+pca.eigenval.sum = sum(mme.pca$values) #sum of eigenvalues
+varPC1 <- (mme.pca$values[1]/pca.eigenval.sum)*100 #Variance explained by PC1
+varPC2 <- (mme.pca$values[2]/pca.eigenval.sum)*100 #Variance explained by PC2
+varPC3 <- (mme.pca$values[3]/pca.eigenval.sum)*100 #Variance explained by PC3
+varPC4 <- (mme.pca$values[4]/pca.eigenval.sum)*100 #Variance explained by PC4
+
+percent_var <- (mme.pca$values/pca.eigenval.sum)*100
+
+# screee plot
+
+pdf(file = "/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd_screeplot.pdf")
+
+  plot(1:20, percent_var[1:20], 
+      xlab = "PC", 
+      ylab = "% Variance Explained")
+  abline(v = which(diff(percent_var[1:20]) > -0.5)[1], 
+       col = "red", lty = 2)
+
+dev.off()
+
+pdf(file = "/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd_screeplot.pdf")
+
+barplot(percent_var[1:15],
+        names.arg = paste0("PC", 1:15),
+        xlab = "PC",
+        ylab = "% Variance Explained",
+        main = "Variance explained per PC")
+abline(h = percent_var[8], col = "red", lty = 2)
+
+dev.off()
+
+# output PC1-7 for -doAsso 
+
+write.table(pca.vectors[, 2:8],
+            file = "/home/miclark/MpyrAdapt/results/pca/no_LD_prune/Mpyr_north_pcangsd_noPrune_7PCs.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+```
+
+## Genotype-environment association
+- Basic GEA with RDA? Bishop et al. uses "Capblancq and Forester (2021) using the R package ‘vegan’ version 2.6.4."
+- PCAngsd --> ANGSD-asso, Jørsboe and Albrechtsen 2022, glm, 
+
+```{bash, eval = FALSE}
+
+# Association tests in angsd
+  # -doAsso 2 for score test, unphased, unimputed data 
+  # -yQuant phenotype/environmental variables, -999 = missing, single phenotype entry per line
+  # -cov additional covariates (population structure), each line is the covariate for an individual, number of lines = number of individuals, columns = covariates 
+  # call genotype likelihoods on the fly, so also need to provide sites and filtering flags 
+
+# use sites from initial angsd run: 
+
+COV="/home/miclark/MpyrAdapt/results/pca/Mpyr_north_pcangsd_7PCs.txt"
+
+zcat $OUTDIR/gl.mafs.gz | tail -n +2 | awk '{print $1"\t"$2}' > sites_from_gl.txt
+angsd sites index sites_from_gl.txt
+
+
+# do association test 
+angsd -doAsso 2 -yQuant $ENV -cov $COV 
+
+
+```
 
 ## Heterozygosity, pi, theta
 
@@ -795,7 +946,28 @@ echo done calling genotype likelihoods
 - Correlate with heatwave intensity? 
 
 
-## Genotype-environment association
-- Basic GEA with RDA? Bishop et al. uses "Capblancq and Forester (2021) using the R package ‘vegan’ version 2.6.4."
 
 
+
+# Code Graveyard
+*OUTDATED*: Use samtools depth to generate per-site coverage histogram to inform depth cut-offs
+```{bash, eval = FALSE}
+# Strategy: job will be an array job, where each task is a different chromosome, so the list of chromosomes will act as a array key. Each task will use all bams
+
+# index .bam files (only need to happen once) from an interactive job
+salloc --time=24:00:00 --mem=100Gb --ntasks=1 --cpus-per-task=10 --partition=lab-mpinsky \
+        --qos=pi-mpinsky \
+        --account=pi-mpinsky
+module load samtools
+indir="/home/miclark/MpyrAdapt/data/alignments"
+samtools index -M -@ 10 ${indir}/*.bam 
+
+# chrom_list.txt is a list of chromosome names to use as an array key for the samtools depth job, which will run one chromosome per task in an array job
+
+./scripts/wrapper-bam_depth.sh 
+
+# Read output files into R and plot coverage histograms to inform depth cut-offs for variant calling
+
+sbatch ./scripts/make_depth_histograms.sbatch # jobid 198073
+
+```
