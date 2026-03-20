@@ -920,6 +920,30 @@ write.table(pca.vectors[, 2:8],
 - Basic GEA with RDA? Bishop et al. uses "Capblancq and Forester (2021) using the R package ‘vegan’ version 2.6.4."
 - PCAngsd --> ANGSD-asso, Jørsboe and Albrechtsen 2022, glm, 
 
+Set up metadata
+```{bash, eval = FALSE}
+inds <- read.csv("./scripts/pass_depth_northern_inds.txt", header = F)$V1
+envDat <- read.csv("./metadata/MpyrAdapt_sites_extract_unique.csv", header = T)
+
+# extract site code from individual names
+site <- unlist(lapply(X = strsplit(inds, "_"), FUN = function(x){return(x[3])}))
+site <- unlist(lapply(X = strsplit(site, "-"), FUN = function(x){return(x[1])}))
+
+inds <- cbind.data.frame(inds, site)
+
+meta <- left_join(inds, envDat, by = "site")
+
+write.table(meta[,5:10],
+            file = "./metadata/Mpyr_north_envDat.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+
+
+```
+
+
 ```{bash, eval = FALSE}
 
 # Association tests in angsd
