@@ -211,6 +211,9 @@ all_sites <- bind_rows(
 ) %>%
   mutate(Row_ID = row_number())  # unique identifier for every row
 
+# save 
+write.table(all_sites, file = "./metadata/MpyrAdapt_sites.txt", row.names = FALSE, quote = FALSE, sep = ",")
+
 # Color palette by Dataset
 pal <- colorFactor(
   palette = c("#2196F3", "tomato", "#4CAF50", "#FF9800"),
