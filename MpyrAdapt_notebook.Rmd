@@ -12,6 +12,7 @@ Project begun Februray 2026. Goal is to combine multiple *Macrocystis* whole gen
 
 # Notes
 - need to re-annotate VCF with updated PF masks as of 3/18/2026
+- need to go back to beginning and give all sites with slightly different coordinates different site identifiers
 
 ## Directory structure
 
