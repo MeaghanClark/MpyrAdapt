@@ -13,7 +13,7 @@ date=$(date +%m%d%Y)
 logfilesdir="/home/miclark/MpyrAdapt/logs/${jobname}"
 indir="/hb/scratch/miclark/MpyrAdapt/variants/normBCFs"
 outdir="/hb/scratch/miclark/MpyrAdapt/variants/annotatedVCFs"
-maskdir="/home/miclark/MpyrAdapt/data/variants/masks"
+maskdir="/home/miclark/MpyrAdapt/data/variants/masks/pass_fail"
 groupfile='/home/miclark/MpyrAdapt/scripts/Mpyr_groups_qc.txt' # CHECK THAT THIS MATCHES ORDER OF INDIVIDUALS IN BCF
 	# group file contains four columns: #GROUP	INDEX	MIN_GQ	MIN_DP
 		# group code, usually population code 

@@ -17,7 +17,7 @@ REPORT=${OUTDIR}/reports/MpyrAdapt_PF_mask_${SLURM_ARRAY_TASK_ID}.txt
 
 echo The date is $DATE
 
-CMD="$SCRIPT --mindepth 870 --maxdepth 3486 --minmq 35 --maxmq0 0.1 --minbq 20 --maxbq0 0.1 $BAMSTATS $OUTPREFIX > $REPORT" # update filtering values based on bamstats summaries
+CMD="$SCRIPT --mindepth 174 --maxdepth 3486 --minmq 35 --maxmq0 0.1 --minbq 20 --maxbq0 0.1 $BAMSTATS $OUTPREFIX > $REPORT" # update filtering values based on bamstats summaries
 
 # changed parameters based on output from bamstats histograms 
 

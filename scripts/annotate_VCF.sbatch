@@ -13,7 +13,7 @@ BEDFILE='${MASKDIR}/MpyrAdapt_PF_mask_${SLURM_ARRAY_TASK_ID}_fail.bed'
 
 #SCAF=$(cat $REGFILE)
 # trying -r, annotate by scaffold 
-CMD="bcftools view -r $CHROM --no-version $BCF | $SCRIPT --dpbounds 870,3486 --hetbound 1e-4 --bed $BEDFILE --overwrite --genorep $GRPFILE | bgzip > $OUTFILE" 
+CMD="bcftools view -r $CHROM --no-version $BCF | $SCRIPT --dpbounds 174,3486 --hetbound 1e-4 --bed $BEDFILE --overwrite --genorep $GRPFILE | bgzip > $OUTFILE" 
 
 printf "\n%s\n\n" "$CMD"
 eval $CMD
