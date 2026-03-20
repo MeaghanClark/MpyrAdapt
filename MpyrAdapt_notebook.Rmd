@@ -940,30 +940,49 @@ write.table(meta[,5:10],
             col.names = FALSE,
             quote = FALSE)
 
+write.table(meta[,5],
+            file = "./metadata/doAsso/Mpyr_north_avgChl1318.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
 
+write.table(meta[,6],
+            file = "./metadata/doAsso/Mpyr_north_avg_DO_wc.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+write.table(meta[,7],
+            file = "./metadata/doAsso/Mpyr_north_avg_pH_wc.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+write.table(meta[,8],
+            file = "./metadata/doAsso/Mpyr_north_sstSD9524.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+write.table(meta[,9],
+            file = "./metadata/doAsso/Mpyr_north_sstSD1318.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
+
+write.table(meta[,10],
+            file = "./metadata/doAsso/Mpyr_north_DHWmax1318.txt",
+            row.names = FALSE,
+            col.names = FALSE,
+            quote = FALSE)
 
 ```
 
 
+Test run association tests
 ```{bash, eval = FALSE}
 
-# Association tests in angsd
-  # -doAsso 2 for score test, unphased, unimputed data 
-  # -yQuant phenotype/environmental variables, -999 = missing, single phenotype entry per line
-  # -cov additional covariates (population structure), each line is the covariate for an individual, number of lines = number of individuals, columns = covariates 
-  # call genotype likelihoods on the fly, so also need to provide sites and filtering flags 
-
-# use sites from initial angsd run: 
-
-COV="/home/miclark/MpyrAdapt/results/pca/Mpyr_north_pcangsd_7PCs.txt"
-
-zcat $OUTDIR/gl.mafs.gz | tail -n +2 | awk '{print $1"\t"$2}' > sites_from_gl.txt
-angsd sites index sites_from_gl.txt
-
-
-# do association test 
-angsd -doAsso 2 -yQuant $ENV -cov $COV 
-
+sbatch ./scripts/doAsso_angsd.sbatch # job id 204860, 204867, 204868, 204870
 
 ```
 
